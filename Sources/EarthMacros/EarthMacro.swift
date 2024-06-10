@@ -7,5 +7,6 @@ import SwiftSyntaxMacros
 struct EarthPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         RawRepresenting.self,
+        MutableRawRepresenting.self,
     ]
 }

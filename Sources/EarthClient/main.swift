@@ -1,6 +1,6 @@
 import Earth
 
-@RawRepresenting<Int>
+@MutableRawRepresenting<Int>
 public struct Test {
 //    public typealias RawValue = Int
 }

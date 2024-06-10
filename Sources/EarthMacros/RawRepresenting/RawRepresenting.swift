@@ -11,9 +11,9 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-public struct RewritableRawRepresenting : RawRepresentingProtocol {
+public struct MutableRawRepresenting : RawRepresentingProtocol {
     
-    public static var attributeIdentifer = IdentifierTypeSyntax(name: "RewritableRawRepresenting")
+    public static var attributeIdentifer = IdentifierTypeSyntax(name: "MutableRawRepresenting")
     
     public static var rawValueModifier: ExprSyntax = "var"
 }
