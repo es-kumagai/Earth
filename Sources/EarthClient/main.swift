@@ -1,8 +1,7 @@
 import Earth
 
-let a = 17
-let b = 25
+@RawRepresenting<Int>
+public struct Test {
+//    public typealias RawValue = Int
+}
 
-let (result, code) = #stringify(a + b)
-
-print("The value \(result) was produced by the code \"\(code)\"")
