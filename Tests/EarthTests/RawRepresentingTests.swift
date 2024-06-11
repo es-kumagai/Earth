@@ -161,9 +161,9 @@ final class RawRepresentingTests: XCTestCase {
                     self.rawValue = rawValue
                 }
 
-                static let scope = Test(rawValue: kParameterScope)
+                public static let scope = Test(rawValue: kParameterScope)
             
-                static let element = Test(rawValue: kParameterElement)
+                public static let element = Test(rawValue: kParameterElement)
             }
             """,
             macros: testMacros

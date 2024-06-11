@@ -32,12 +32,12 @@ public extension RawRepresentingProtocol {
 
     static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax, in context: some MacroExpansionContext) throws -> [DeclSyntax] {
         
-        let modifier = specifyingAccessControlModifier(of: declaration)
+        let accessControl = specifyingAccessControlModifier(of: declaration)
         let attribute = try attribute(of: declaration)
         let rawType = try rawType(of: attribute)
         
-        let rawValueDefinition = makeRawValueImplementation(of: declaration, modifier: modifier, rawType: rawType)
-        let constantDefinitions = try makeConstantsImplementation(of: declaration, attribute: attribute)
+        let rawValueDefinition = makeRawValueImplementation(of: declaration, accessControl: accessControl, rawType: rawType)
+        let constantDefinitions = try makeConstantsImplementation(of: declaration, attribute: attribute, accessControl: accessControl)
         
         return CollectionOfOne("\(rawValueDefinition.formatted())") + constantDefinitions.map(DeclSyntax.init)
     }
@@ -45,33 +45,39 @@ public extension RawRepresentingProtocol {
 
 private extension RawRepresentingProtocol {
 
-    static func specifyingAccessControlModifier(of declaration: DeclGroupSyntax) -> String {
+    static func specifyingAccessControlModifier(of declaration: DeclGroupSyntax) -> String? {
         
         switch declaration.modifiers.primaryAccessControl?.name.text {
             
         case nil:
-            ""
+            nil
             
         case "open":
-            "public "
+            "public"
             
         case let modifier?:
-            "\(modifier) "
+            "\(modifier)"
         }
     }
     
-    static func makeRawValueImplementation(of declaration: some DeclGroupSyntax, modifier: String, rawType: some SyntaxProtocol) -> ExprSyntax {
+    static func makeRawValueImplementation(of declaration: some DeclGroupSyntax, accessControl: String?, rawType: some SyntaxProtocol) -> ExprSyntax {
         
-        """
-        \(raw: modifier)\(rawValueModifier) rawValue: \(rawType)
+        let accessControl = if let accessControl {
+            "\(accessControl) "
+        } else {
+            ""
+        }
         
-        \(raw: modifier)init(rawValue: \(rawType)) {
+        return """
+        \(raw: accessControl)\(rawValueModifier) rawValue: \(rawType)
+        
+        \(raw: accessControl)init(rawValue: \(rawType)) {
             self.rawValue = rawValue
         }
         """
     }
     
-    static func makeConstantsImplementation(of declaration: some DeclGroupSyntax, attribute: AttributeSyntax) throws -> [VariableDeclSyntax] {
+    static func makeConstantsImplementation(of declaration: some DeclGroupSyntax, attribute: AttributeSyntax, accessControl: String?) throws -> [VariableDeclSyntax] {
 
         guard let constantsEnum = declaration.memberBlock.enumerations.first(withTypeName: constantsEnumName) else {
             return []
@@ -80,12 +86,12 @@ private extension RawRepresentingProtocol {
         let type = try targetType(of: declaration)
         let prefix = try constantPrefix(of: attribute)
         let rawType = try rawType(of: attribute)
-        let constantsDefinitions = try makeConstants(for: constantsEnum, valueType: type, rawType: rawType, prefix: prefix)
+        let constantsDefinitions = try makeConstants(for: constantsEnum, valueType: type, rawType: rawType, accessControl: accessControl, constantPrefix: prefix)
 
         return constantsDefinitions
     }
     
-    static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, prefix: String) throws -> [VariableDeclSyntax] {
+    static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?, constantPrefix: String) throws -> [VariableDeclSyntax] {
         
         return try enumeration.flatElements.map { element in
             
@@ -94,10 +100,10 @@ private extension RawRepresentingProtocol {
             return switch element.rawValue {
                 
             case let rawValue?:
-                try makeVariableDefinition(for: baseName, with: rawValue, valueType: valueType, rawType: rawType)
+                try makeConstantDefinition(for: baseName, with: rawValue, valueType: valueType, rawType: rawType, accessControl: accessControl)
                 
             case nil:
-                try makeVariableDefinition(for: baseName, valueType: valueType, rawType: rawType, initialValue: "\(raw: prefix)\(baseName.uppercasedFirstLetter)")
+                try makeConstantDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(raw: constantPrefix)\(baseName.uppercasedFirstLetter)")
             }
         }
     }
@@ -131,32 +137,35 @@ private extension RawRepresentingProtocol {
         return rawValue
     }
     
-    static func makeVariableDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax) throws -> VariableDeclSyntax {
+    static func makeConstantDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?) throws -> VariableDeclSyntax {
         
         if let newRawValue = newRawValue.value.as(StringLiteralExprSyntax.self) {
             
-            return try makeVariableDefinition(for: baseName, valueType: valueType, rawType: rawType, initialValue: "\(raw: newRawValue.text)")
+            return try makeConstantDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(raw: newRawValue.text)")
         }
         
         if let newRawValue = newRawValue.as(IntegerLiteralExprSyntax.self) {
             
-            return try makeVariableDefinition(for: baseName, valueType: valueType, rawType: rawType, initialValue: "\(newRawValue.literal)")
+            return try makeConstantDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue.literal)")
         }
         
         if let newRawValue = newRawValue.as(FloatLiteralExprSyntax.self) {
             
-            return try makeVariableDefinition(for: baseName, valueType: valueType, rawType: rawType, initialValue: "\(newRawValue.literal)")
+            return try makeConstantDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue.literal)")
         }
         
         throw RawRepresentingError.unexpectedSyntax("The raw value is type of either a string literal or a number (integer/float) literal.")
     }
     
-    static func makeVariableDefinition(for variableName: TokenSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, initialValue: ExprSyntax) throws -> VariableDeclSyntax {
+    static func makeConstantDefinition(for variableName: TokenSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?, initialValue: ExprSyntax) throws -> VariableDeclSyntax {
         
-        let variableName = IdentifierPatternSyntax(identifier: variableName)
+        let variableName = IdentifierPatternSyntax(identifier: "\(raw: variableName.text)")
         let initialValue = InitializerClauseSyntax(value: ExprSyntax("\(valueType)(rawValue: \(initialValue))"))
         
-        let modifiers = DeclModifierListSyntax("static")
+        let modifiers = if let accessControl { DeclModifierListSyntax(accessControl, "static")
+        } else {
+            DeclModifierListSyntax("static")
+        }
         let bindings = PatternBindingListSyntax {
             PatternBindingSyntax(pattern: variableName, initializer: initialValue)
         }
