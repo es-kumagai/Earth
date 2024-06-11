@@ -11,7 +11,7 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-public protocol RawRepresentingProtocol : MemberMacro, ExtensionMacro {
+public protocol RawRepresentingProtocol : MemberMacro {
     
     static var attributeIdentifer: IdentifierTypeSyntax { get }
     static var rawValueModifier: ExprSyntax { get }
@@ -29,47 +29,25 @@ public extension RawRepresentingProtocol {
         "constantPrefix"
     }
     
-    static func expansion(of node: AttributeSyntax, attachedTo declaration: some DeclGroupSyntax, providingExtensionsOf type: some TypeSyntaxProtocol, conformingTo protocols: [TypeSyntax], in context: some MacroExpansionContext) throws -> [ExtensionDeclSyntax] {
-        
-        guard
-            declaration.is(either: StructDeclSyntax.self, ClassDeclSyntax.self) else {
-            
-            throw RawRepresentingError.unsupported("This macro can be applied to a `struct` or a `class`.")
-        }
-        
-        guard let constantsEnum = declaration.memberBlock.enumerations.first(withTypeName: constantsEnumName) else {
-            return []
-        }
 
-        guard let attribute = declaration.attributes.first(having: attributeIdentifer) else {
-            
-            throw RawRepresentingError.unexpectedSyntax("The attribute itself cannot be detected.")
-        }
-        
-        let prefix = try constantPrefix(of: attribute)
-        let rawType = try rawType(of: attribute)
-        let modifiers = declaration.modifiers.accessControls
-        let constantsDefinitions = try makeConstants(for: constantsEnum, valueType: type, rawType: rawType, prefix: prefix)
-        
-        let `extension` = ExtensionDeclSyntax(modifiers: modifiers, extendedType: type) {
-            
-            for definition in constantsDefinitions {
-                definition
-            }
-        }
-        
-        return [`extension`]
-    }
-    
     static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax, in context: some MacroExpansionContext) throws -> [DeclSyntax] {
         
-        guard
-            declaration.is(either: StructDeclSyntax.self, ClassDeclSyntax.self) else {
-            
-            throw RawRepresentingError.unsupported("This macro can be applied to a `struct` or a `class`.")
-        }
+        let modifier = specifyingAccessControlModifier(of: declaration)
+        let attribute = try attribute(of: declaration)
+        let rawType = try rawType(of: attribute)
         
-        let specifyingModifier = switch declaration.modifiers.primaryAccessControl?.name.text {
+        let rawValueDefinition = makeRawValueImplementation(of: declaration, modifier: modifier, rawType: rawType)
+        let constantDefinitions = try makeConstantsImplementation(of: declaration, attribute: attribute)
+        
+        return CollectionOfOne("\(rawValueDefinition.formatted())") + constantDefinitions.map(DeclSyntax.init)
+    }
+}
+
+private extension RawRepresentingProtocol {
+
+    static func specifyingAccessControlModifier(of declaration: DeclGroupSyntax) -> String {
+        
+        switch declaration.modifiers.primaryAccessControl?.name.text {
             
         case nil:
             ""
@@ -80,26 +58,33 @@ public extension RawRepresentingProtocol {
         case let modifier?:
             "\(modifier) "
         }
+    }
+    
+    static func makeRawValueImplementation(of declaration: some DeclGroupSyntax, modifier: String, rawType: some SyntaxProtocol) -> ExprSyntax {
         
-        let attribute = try attribute(of: declaration)
-        let rawType = try rawType(of: attribute)
+        """
+        \(raw: modifier)\(rawValueModifier) rawValue: \(rawType)
         
-        let expression: ExprSyntax = """
-        \(raw: specifyingModifier)\(rawValueModifier) rawValue: \(rawType)
-        
-        \(raw: specifyingModifier)init(rawValue: \(rawType)) {
+        \(raw: modifier)init(rawValue: \(rawType)) {
             self.rawValue = rawValue
         }
         """
-        
-        return [
-            "\(expression.formatted())"
-        ]
     }
-}
+    
+    static func makeConstantsImplementation(of declaration: some DeclGroupSyntax, attribute: AttributeSyntax) throws -> [VariableDeclSyntax] {
 
-private extension RawRepresentingProtocol {
+        guard let constantsEnum = declaration.memberBlock.enumerations.first(withTypeName: constantsEnumName) else {
+            return []
+        }
 
+        let type = try targetType(of: declaration)
+        let prefix = try constantPrefix(of: attribute)
+        let rawType = try rawType(of: attribute)
+        let constantsDefinitions = try makeConstants(for: constantsEnum, valueType: type, rawType: rawType, prefix: prefix)
+
+        return constantsDefinitions
+    }
+    
     static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, prefix: String) throws -> [VariableDeclSyntax] {
         
         return try enumeration.flatElements.map { element in
@@ -177,5 +162,17 @@ private extension RawRepresentingProtocol {
         }
         
         return VariableDeclSyntax(modifiers: modifiers, bindingSpecifier: "let", bindings: bindings)
+    }
+    
+    static func targetType(of declaration: some DeclGroupSyntax) throws -> TypeSyntaxProtocol {
+                
+        if
+            let decl = declaration.as(StructDeclSyntax.self) {
+            TypeSyntax("\(raw: decl.name.text)")
+        } else if let decl = declaration.as(ClassDeclSyntax.self) {
+            TypeSyntax("\(raw: decl.name.text)")
+        } else {
+            throw RawRepresentingError.unsupported("This macro can be applied to a `struct` or a `class`.")
+        }
     }
 }

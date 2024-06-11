@@ -160,10 +160,9 @@ final class RawRepresentingTests: XCTestCase {
                 public init(rawValue: Int) {
                     self.rawValue = rawValue
                 }
-            }
-            
-            public extension Test {
+
                 static let scope = Test(rawValue: kParameterScope)
+            
                 static let element = Test(rawValue: kParameterElement)
             }
             """,
