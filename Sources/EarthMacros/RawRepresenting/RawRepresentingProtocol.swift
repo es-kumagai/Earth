@@ -38,7 +38,7 @@ public extension RawRepresentingProtocol {
 
         let rawType = try rawType(of: declaration)
         let modifiers = declaration.modifiers.accessControls
-        let constantsDefinitions = try makeConstants(for: constantsEnum, rawType: rawType)
+        let constantsDefinitions = try makeConstants(for: constantsEnum, valueType: type, rawType: rawType)
         
         let `extension` = ExtensionDeclSyntax(modifiers: modifiers, extendedType: type) {
             
@@ -88,7 +88,7 @@ public extension RawRepresentingProtocol {
 
 private extension RawRepresentingProtocol {
 
-    static func makeConstants(for enumeration: EnumDeclSyntax, rawType: GenericArgumentSyntax) throws -> [VariableDeclSyntax] {
+    static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax) throws -> [VariableDeclSyntax] {
         
         var prefix: String?
         
@@ -99,10 +99,10 @@ private extension RawRepresentingProtocol {
             return switch (element.rawValue, prefix) {
                 
             case (let rawValue?, _):
-                try makeVariableDefinition(for: baseName, with: rawValue, currentPrefix: &prefix, rawType: rawType)
+                try makeVariableDefinition(for: baseName, with: rawValue, currentPrefix: &prefix, valueType: valueType, rawType: rawType)
                 
             case (nil, let prefix?):
-                try makeVariableDefinition(for: baseName, withCurrentPrefix: prefix, rawType: rawType)
+                try makeVariableDefinition(for: baseName, withCurrentPrefix: prefix, valueType: valueType, rawType: rawType)
                 
             case (nil, nil):
                 throw RawRepresentingError.unexpectedSyntax("Raw value must be specified at least on the first enumeration case.")
@@ -125,48 +125,46 @@ private extension RawRepresentingProtocol {
         return rawValue
     }
     
-    static func makeVariableDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, currentPrefix: inout String!, rawType: GenericArgumentSyntax) throws -> VariableDeclSyntax {
+    static func makeVariableDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, currentPrefix: inout String!, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax) throws -> VariableDeclSyntax {
         
         if let newRawValue = newRawValue.value.as(StringLiteralExprSyntax.self) {
             
             currentPrefix = newRawValue.text
             
-            return try makeVariableDefinition(for: baseName, withCurrentPrefix: currentPrefix, rawType: rawType)
+            return try makeVariableDefinition(for: baseName, withCurrentPrefix: currentPrefix, valueType: valueType, rawType: rawType)
         }
         
         if let newRawValue = newRawValue.as(IntegerLiteralExprSyntax.self) {
             
-            return try makeVariableDefinition(for: baseName, rawType: rawType, initialValue: "\(newRawValue.literal)")
+            return try makeVariableDefinition(for: baseName, valueType: valueType, rawType: rawType, initialValue: "\(newRawValue.literal)")
         }
         
         if let newRawValue = newRawValue.as(FloatLiteralExprSyntax.self) {
             
-            return try makeVariableDefinition(for: baseName, rawType: rawType, initialValue: "\(newRawValue.literal)")
+            return try makeVariableDefinition(for: baseName, valueType: valueType, rawType: rawType, initialValue: "\(newRawValue.literal)")
         }
         
         throw RawRepresentingError.unexpectedSyntax("The raw value is type of either a string literal or a number (integer/float) literal.")
     }
     
-    static func makeVariableDefinition(for variableName: TokenSyntax, rawType: GenericArgumentSyntax, initialValue: ExprSyntax) throws -> VariableDeclSyntax {
+    static func makeVariableDefinition(for variableName: TokenSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, initialValue: ExprSyntax) throws -> VariableDeclSyntax {
         
         let variableName = IdentifierPatternSyntax(identifier: variableName)
-        let rawType = TypeSyntax("\(rawType)")
-        let typeAnnotation = TypeAnnotationSyntax(type: rawType)
-        let initialValue = InitializerClauseSyntax(value: initialValue)
+        let initialValue = InitializerClauseSyntax(value: ExprSyntax("\(valueType)(rawValue: \(initialValue))"))
         
         let modifiers = DeclModifierListSyntax("static")
         let bindings = PatternBindingListSyntax {
-            PatternBindingSyntax(pattern: variableName, typeAnnotation: typeAnnotation, initializer: initialValue)
+            PatternBindingSyntax(pattern: variableName, initializer: initialValue)
         }
         
         return VariableDeclSyntax(modifiers: modifiers, bindingSpecifier: "let", bindings: bindings)
     }
 
-    static func makeVariableDefinition(for variableName: TokenSyntax, withCurrentPrefix prefix: String, rawType: GenericArgumentSyntax) throws -> VariableDeclSyntax {
+    static func makeVariableDefinition(for variableName: TokenSyntax, withCurrentPrefix prefix: String, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax) throws -> VariableDeclSyntax {
         
         let constantName = variableName.prefixed(with: prefix, uppercasedFirstLetter: true)
         let initialValue = ExprSyntax("\(constantName)")
         
-        return try makeVariableDefinition(for: variableName, rawType: rawType, initialValue: initialValue)
+        return try makeVariableDefinition(for: variableName, valueType: valueType, rawType: rawType, initialValue: initialValue)
     }
 }
