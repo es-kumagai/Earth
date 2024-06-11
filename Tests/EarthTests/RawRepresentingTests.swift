@@ -137,11 +137,11 @@ final class RawRepresentingTests: XCTestCase {
 #if canImport(EarthMacros)
         assertMacroExpansion(
             """
-            @RawRepresenting<Int>
+            @RawRepresenting<Int>(constantPrefix: "kParameter")
             public struct Test {
 
-                private enum RawRepresentingConstants : String {
-                    case scope = "kParameter"
+                private enum RawRepresentingConstants {
+                    case scope
                     case element
                 }
             }
@@ -150,8 +150,8 @@ final class RawRepresentingTests: XCTestCase {
             
             public struct Test {
 
-                private enum RawRepresentingConstants : String {
-                    case scope = "kParameter"
+                private enum RawRepresentingConstants {
+                    case scope
                     case element
                 }
             

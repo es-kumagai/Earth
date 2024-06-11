@@ -20,4 +20,13 @@ public extension AttributeSyntax {
     func having(_ identifier: IdentifierTypeSyntax) -> Bool {
         attributeIdentifier?.name.text == identifier.name.text
     }
+    
+    var parameters: [LabeledExprSyntax]? {
+        
+        guard let arguments else {
+            return nil
+        }
+
+        return arguments.as(LabeledExprListSyntax.self)?.casted
+    }
 }

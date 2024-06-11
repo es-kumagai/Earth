@@ -16,12 +16,17 @@ public protocol RawRepresentingProtocol : MemberMacro, ExtensionMacro {
     static var attributeIdentifer: IdentifierTypeSyntax { get }
     static var rawValueModifier: ExprSyntax { get }
     static var constantsEnumName: String { get }
+    static var constantsPrefixParameterName: String { get }
 }
 
 public extension RawRepresentingProtocol {
     
     static var constantsEnumName: String {
         "RawRepresentingConstants"
+    }
+    
+    static var constantsPrefixParameterName: String {
+        "constantPrefix"
     }
     
     static func expansion(of node: AttributeSyntax, attachedTo declaration: some DeclGroupSyntax, providingExtensionsOf type: some TypeSyntaxProtocol, conformingTo protocols: [TypeSyntax], in context: some MacroExpansionContext) throws -> [ExtensionDeclSyntax] {
@@ -36,9 +41,15 @@ public extension RawRepresentingProtocol {
             return []
         }
 
-        let rawType = try rawType(of: declaration)
+        guard let attribute = declaration.attributes.first(having: attributeIdentifer) else {
+            
+            throw RawRepresentingError.unexpectedSyntax("The attribute itself cannot be detected.")
+        }
+        
+        let prefix = try constantPrefix(of: attribute)
+        let rawType = try rawType(of: attribute)
         let modifiers = declaration.modifiers.accessControls
-        let constantsDefinitions = try makeConstants(for: constantsEnum, valueType: type, rawType: rawType)
+        let constantsDefinitions = try makeConstants(for: constantsEnum, valueType: type, rawType: rawType, prefix: prefix)
         
         let `extension` = ExtensionDeclSyntax(modifiers: modifiers, extendedType: type) {
             
@@ -70,7 +81,8 @@ public extension RawRepresentingProtocol {
             "\(modifier) "
         }
         
-        let rawType = try rawType(of: declaration)
+        let attribute = try attribute(of: declaration)
+        let rawType = try rawType(of: attribute)
         
         let expression: ExprSyntax = """
         \(raw: specifyingModifier)\(rawValueModifier) rawValue: \(rawType)
@@ -88,34 +100,43 @@ public extension RawRepresentingProtocol {
 
 private extension RawRepresentingProtocol {
 
-    static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax) throws -> [VariableDeclSyntax] {
-        
-        var prefix: String?
+    static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, prefix: String) throws -> [VariableDeclSyntax] {
         
         return try enumeration.flatElements.map { element in
             
             let baseName = element.name
             
-            return switch (element.rawValue, prefix) {
+            return switch element.rawValue {
                 
-            case (let rawValue?, _):
-                try makeVariableDefinition(for: baseName, with: rawValue, currentPrefix: &prefix, valueType: valueType, rawType: rawType)
+            case let rawValue?:
+                try makeVariableDefinition(for: baseName, with: rawValue, valueType: valueType, rawType: rawType)
                 
-            case (nil, let prefix?):
-                try makeVariableDefinition(for: baseName, withCurrentPrefix: prefix, valueType: valueType, rawType: rawType)
-                
-            case (nil, nil):
-                throw RawRepresentingError.unexpectedSyntax("Raw value must be specified at least on the first enumeration case.")
+            case nil:
+                try makeVariableDefinition(for: baseName, valueType: valueType, rawType: rawType, initialValue: "\(raw: prefix)\(baseName.uppercasedFirstLetter)")
             }
         }
     }
     
-    static func rawType(of declaration: some DeclGroupSyntax) throws -> GenericArgumentSyntax {
+    static func attribute(of declaration: some DeclGroupSyntax) throws -> AttributeSyntax {
         
         guard let attribute = declaration.attributes.first(having: attributeIdentifer) else {
             
             throw RawRepresentingError.unexpectedSyntax("The attribute itself cannot be detected.")
         }
+        
+        return attribute
+    }
+
+    static func constantPrefix(of attribute: AttributeSyntax) throws -> String {
+        
+        guard let parameter = attribute.parameters?.first(havingName: constantsPrefixParameterName) else {
+            return ""
+        }
+
+        return parameter.expression.as(StringLiteralExprSyntax.self)!.text
+    }
+    
+    static func rawType(of attribute: AttributeSyntax) throws -> GenericArgumentSyntax {
         
         guard let rawValue = attribute.attributeIdentifier?.genericArguments?.casted.first else {
             
@@ -125,13 +146,11 @@ private extension RawRepresentingProtocol {
         return rawValue
     }
     
-    static func makeVariableDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, currentPrefix: inout String!, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax) throws -> VariableDeclSyntax {
+    static func makeVariableDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax) throws -> VariableDeclSyntax {
         
         if let newRawValue = newRawValue.value.as(StringLiteralExprSyntax.self) {
             
-            currentPrefix = newRawValue.text
-            
-            return try makeVariableDefinition(for: baseName, withCurrentPrefix: currentPrefix, valueType: valueType, rawType: rawType)
+            return try makeVariableDefinition(for: baseName, valueType: valueType, rawType: rawType, initialValue: "\(raw: newRawValue.text)")
         }
         
         if let newRawValue = newRawValue.as(IntegerLiteralExprSyntax.self) {
@@ -158,13 +177,5 @@ private extension RawRepresentingProtocol {
         }
         
         return VariableDeclSyntax(modifiers: modifiers, bindingSpecifier: "let", bindings: bindings)
-    }
-
-    static func makeVariableDefinition(for variableName: TokenSyntax, withCurrentPrefix prefix: String, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax) throws -> VariableDeclSyntax {
-        
-        let constantName = variableName.prefixed(with: prefix, uppercasedFirstLetter: true)
-        let initialValue = ExprSyntax("\(constantName)")
-        
-        return try makeVariableDefinition(for: variableName, valueType: valueType, rawType: rawType, initialValue: initialValue)
     }
 }

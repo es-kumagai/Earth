@@ -1,11 +1,11 @@
 import Earth
 
-//@MutableRawRepresenting<Int>
+//@MutableRawRepresenting<Int>(constantPrefix: "kParameter")
 //public struct Test {
 //
 //    private enum RawRepresentingConstants : String {
-//        case scope = "kParameter"
+//        case scope = "kParameterCustom"
 //        case element
 //    }
 //}
-//
+
