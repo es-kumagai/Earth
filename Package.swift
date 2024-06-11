@@ -13,6 +13,10 @@ let package = Package(
             name: "Earth",
             targets: ["Earth"]
         ),
+        .library(
+            name: "EarthMacroCrust",
+            targets: ["EarthMacroCrust"]
+        ),
         .executable(
             name: "EarthClient",
             targets: ["EarthClient"]
@@ -28,14 +32,15 @@ let package = Package(
         .macro(
             name: "EarthMacros",
             dependencies: [
-                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                "EarthMacroCrust"
             ]
         ),
-
         // Library that exposes a macro as part of its API, which is used in client programs.
         .target(name: "Earth", dependencies: ["EarthMacros"]),
-
+        .target(name: "EarthMacroCrust", dependencies: [
+            .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+        ]),
         // A client of the library, which is able to use the macro in its own code.
         .executableTarget(name: "EarthClient", dependencies: ["Earth"]),
 
@@ -44,6 +49,7 @@ let package = Package(
             name: "EarthTests",
             dependencies: [
                 "EarthMacros",
+                "EarthMacroCrust",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         ),

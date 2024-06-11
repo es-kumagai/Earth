@@ -6,10 +6,10 @@
 //  
 //
 
-import SwiftCompilerPlugin
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
+import EarthMacroCrust
 
 public protocol RawRepresentingProtocol : MemberMacro {
     
