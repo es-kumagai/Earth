@@ -19,7 +19,7 @@ public extension EnumDeclSyntax {
         }
     }
     
-    var flatElements: [EnumCaseElementSyntax] {
+    var allCaseElements: [EnumCaseElementSyntax] {
         
         allCases.flatMap { list in
             list.caseElements

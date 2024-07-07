@@ -93,7 +93,7 @@ private extension RawRepresentingProtocol {
     
     static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?, constantPrefix: String) throws -> [VariableDeclSyntax] {
         
-        return try enumeration.flatElements.map { element in
+        return try enumeration.allCaseElements.map { element in
             
             let baseName = element.name
             

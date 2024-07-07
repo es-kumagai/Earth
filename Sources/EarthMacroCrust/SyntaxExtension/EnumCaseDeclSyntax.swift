@@ -13,7 +13,6 @@ import SwiftSyntaxMacros
 public extension EnumCaseDeclSyntax {
     
     var caseElements: [EnumCaseElementSyntax] {
-
         elements.map { $0 }
     }
 }
