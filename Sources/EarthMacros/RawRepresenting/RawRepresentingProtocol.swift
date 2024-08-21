@@ -29,7 +29,10 @@ public extension RawRepresentingProtocol {
         "constantPrefix"
     }
     
-
+    static var literalsEnumName: String {
+        "RawRepresentingLiterals"
+    }
+    
     static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax, in context: some MacroExpansionContext) throws -> [DeclSyntax] {
         
         let accessControl = specifyingAccessControlModifier(of: declaration)
@@ -38,8 +41,9 @@ public extension RawRepresentingProtocol {
         
         let rawValueDefinition = makeRawValueImplementation(of: declaration, accessControl: accessControl, rawType: rawType)
         let constantDefinitions = try makeConstantsImplementation(of: declaration, attribute: attribute, accessControl: accessControl)
-        
-        return CollectionOfOne("\(rawValueDefinition.formatted())") + constantDefinitions.map(DeclSyntax.init)
+        let literalDefinitions = try makeLiteralsImplementation(of: declaration, attribute: attribute, accessControl: accessControl)
+
+        return CollectionOfOne("\(rawValueDefinition.formatted())") + constantDefinitions.map(DeclSyntax.init) + literalDefinitions.map(DeclSyntax.init)
     }
 }
 
@@ -90,8 +94,21 @@ private extension RawRepresentingProtocol {
 
         return constantsDefinitions
     }
+
+    static func makeLiteralsImplementation(of declaration: some DeclGroupSyntax, attribute: AttributeSyntax, accessControl: String?) throws -> [VariableDeclSyntax] {
+
+        guard let literalsEnum = declaration.memberBlock.enumerations.first(withTypeName: literalsEnumName) else {
+            return []
+        }
+
+        let type = try targetType(of: declaration)
+        let rawType = try rawType(of: attribute)
+        let literalsDefinitions = try makeLiterals(for: literalsEnum, valueType: type, rawType: rawType, accessControl: accessControl)
+
+        return literalsDefinitions
+    }
     
-    static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?, constantPrefix: String) throws -> [VariableDeclSyntax] {
+    static func makeConstants(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?, constantPrefix: String?) throws -> [VariableDeclSyntax] {
         
         return try enumeration.allCaseElements.map { element in
             
@@ -103,11 +120,32 @@ private extension RawRepresentingProtocol {
                 try makeConstantDefinition(for: baseName, with: rawValue, valueType: valueType, rawType: rawType, accessControl: accessControl)
                 
             case nil:
-                try makeConstantDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(raw: constantPrefix)\(baseName.uppercasedFirstLetter)")
+                if let constantPrefix {
+                    try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(raw: constantPrefix)\(baseName.uppercasedFirstLetter)")
+                } else {
+                    try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(baseName)")
+                }
             }
         }
     }
     
+    static func makeLiterals(for enumeration: EnumDeclSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?) throws -> [VariableDeclSyntax] {
+        
+        return try enumeration.allCaseElements.map { element in
+            
+            let baseName = element.name
+            
+            return switch element.rawValue {
+                
+            case let rawValue?:
+                try makeLiteralDefinition(for: baseName, with: rawValue, valueType: valueType, rawType: rawType, accessControl: accessControl)
+                
+            case nil:
+                try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: #""\#(baseName)""#)
+            }
+        }
+    }
+
     static func attribute(of declaration: some DeclGroupSyntax) throws -> AttributeSyntax {
         
         guard let attribute = declaration.attributes.first(having: attributeIdentifer) else {
@@ -118,10 +156,10 @@ private extension RawRepresentingProtocol {
         return attribute
     }
 
-    static func constantPrefix(of attribute: AttributeSyntax) throws -> String {
+    static func constantPrefix(of attribute: AttributeSyntax) throws -> String? {
         
         guard let parameter = attribute.parameters?.first(havingName: constantsPrefixParameterName) else {
-            return ""
+            return nil
         }
 
         return parameter.expression.as(StringLiteralExprSyntax.self)!.text
@@ -137,27 +175,7 @@ private extension RawRepresentingProtocol {
         return rawValue
     }
     
-    static func makeConstantDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?) throws -> VariableDeclSyntax {
-        
-        if let newRawValue = newRawValue.value.as(StringLiteralExprSyntax.self) {
-            
-            return try makeConstantDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(raw: newRawValue.text)")
-        }
-        
-        if let newRawValue = newRawValue.as(IntegerLiteralExprSyntax.self) {
-            
-            return try makeConstantDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue.literal)")
-        }
-        
-        if let newRawValue = newRawValue.as(FloatLiteralExprSyntax.self) {
-            
-            return try makeConstantDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue.literal)")
-        }
-        
-        throw RawRepresentingError.unexpectedSyntax("The raw value is type of either a string literal or a number (integer/float) literal.")
-    }
-    
-    static func makeConstantDefinition(for variableName: TokenSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?, initialValue: ExprSyntax) throws -> VariableDeclSyntax {
+    static func makePropertyDefinition(for variableName: TokenSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?, initialValue: ExprSyntax) throws -> VariableDeclSyntax {
         
         let variableName = IdentifierPatternSyntax(identifier: "\(raw: variableName.text)")
         let initialValue = InitializerClauseSyntax(value: ExprSyntax("\(valueType)(rawValue: \(initialValue))"))
@@ -172,7 +190,47 @@ private extension RawRepresentingProtocol {
         
         return VariableDeclSyntax(modifiers: modifiers, bindingSpecifier: "let", bindings: bindings)
     }
+
+    static func makeConstantDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?) throws -> VariableDeclSyntax {
+        
+        if let newRawValue = newRawValue.value.as(StringLiteralExprSyntax.self) {
+            
+            return try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(raw: newRawValue.text)")
+        }
+        
+        if let newRawValue = newRawValue.value.as(IntegerLiteralExprSyntax.self) {
+            
+            return try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue.literal)")
+        }
+        
+        if let newRawValue = newRawValue.value.as(FloatLiteralExprSyntax.self) {
+            
+            return try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue.literal)")
+        }
+        
+        throw RawRepresentingError.unexpectedSyntax("The raw value is type of either a string literal or a number (integer/float) literal.")
+    }
     
+    static func makeLiteralDefinition(for baseName: TokenSyntax, with newRawValue: InitializerClauseSyntax, valueType: some TypeSyntaxProtocol, rawType: GenericArgumentSyntax, accessControl: String?) throws -> VariableDeclSyntax {
+        
+        if let newRawValue = newRawValue.value.as(StringLiteralExprSyntax.self) {
+            
+            return try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue)")
+        }
+        
+        if let newRawValue = newRawValue.value.as(IntegerLiteralExprSyntax.self) {
+            
+            return try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue.literal)")
+        }
+        
+        if let newRawValue = newRawValue.value.as(FloatLiteralExprSyntax.self) {
+            
+            return try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(newRawValue.literal)")
+        }
+        
+        throw RawRepresentingError.unexpectedSyntax("The raw value is type of either a string literal or a number (integer/float) literal.")
+    }
+
     static func targetType(of declaration: some DeclGroupSyntax) throws -> TypeSyntaxProtocol {
                 
         if

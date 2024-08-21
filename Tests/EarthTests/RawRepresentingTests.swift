@@ -139,7 +139,7 @@ final class RawRepresentingTests: XCTestCase {
             """
             @RawRepresenting<Int>(constantPrefix: "kParameter")
             public struct Test {
-
+            
                 private enum RawRepresentingConstants {
                     case scope
                     case element
@@ -149,7 +149,7 @@ final class RawRepresentingTests: XCTestCase {
             expandedSource: """
             
             public struct Test {
-
+            
                 private enum RawRepresentingConstants {
                     case scope
                     case element
@@ -160,7 +160,7 @@ final class RawRepresentingTests: XCTestCase {
                 public init(rawValue: Int) {
                     self.rawValue = rawValue
                 }
-
+            
                 public static let scope = Test(rawValue: kParameterScope)
             
                 public static let element = Test(rawValue: kParameterElement)
@@ -168,7 +168,150 @@ final class RawRepresentingTests: XCTestCase {
             """,
             macros: testMacros
         )
+        
+        assertMacroExpansion(
+            """
+            @RawRepresenting<Int>
+            public struct Test {
+            
+                private enum RawRepresentingConstants {
+                    case scope
+                    case element
+                }
+            }
+            """,
+            expandedSource: """
+            
+            public struct Test {
+            
+                private enum RawRepresentingConstants {
+                    case scope
+                    case element
+                }
+            
+                public let rawValue: Int
+            
+                public init(rawValue: Int) {
+                    self.rawValue = rawValue
+                }
+            
+                public static let scope = Test(rawValue: scope)
+            
+                public static let element = Test(rawValue: element)
+            }
+            """,
+            macros: testMacros
+        )
 #else
         throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
-    }}
+    }
+    
+    func testLiterals() throws {
+#if canImport(EarthMacros)
+        assertMacroExpansion(
+            """
+            @RawRepresenting<Int>
+            public struct Test {
+            
+                private enum RawRepresentingLiterals {
+                    case scope
+                    case element
+                }
+            }
+            """,
+            expandedSource: """
+            
+            public struct Test {
+            
+                private enum RawRepresentingLiterals {
+                    case scope
+                    case element
+                }
+            
+                public let rawValue: Int
+            
+                public init(rawValue: Int) {
+                    self.rawValue = rawValue
+                }
+            
+                public static let scope = Test(rawValue: "scope")
+            
+                public static let element = Test(rawValue: "element")
+            }
+            """,
+            macros: testMacros
+        )
+        
+        assertMacroExpansion(
+            """
+            @RawRepresenting<Int>
+            public struct Test {
+            
+                private enum RawRepresentingLiterals: Int {
+                    case scope = 1
+                    case element = 2
+                }
+            }
+            """,
+            expandedSource: """
+            
+            public struct Test {
+            
+                private enum RawRepresentingLiterals: Int {
+                    case scope = 1
+                    case element = 2
+                }
+            
+                public let rawValue: Int
+            
+                public init(rawValue: Int) {
+                    self.rawValue = rawValue
+                }
+            
+                public static let scope = Test(rawValue: 1)
+            
+                public static let element = Test(rawValue: 2)
+            }
+            """,
+            macros: testMacros
+        )
+
+        assertMacroExpansion(
+            """
+            @RawRepresenting<Int>
+            public struct Test {
+            
+                private enum RawRepresentingLiterals: String {
+                    case scope = "Scope"
+                    case element = "Element"
+                }
+            }
+            """,
+            expandedSource: """
+            
+            public struct Test {
+            
+                private enum RawRepresentingLiterals: String {
+                    case scope = "Scope"
+                    case element = "Element"
+                }
+            
+                public let rawValue: Int
+            
+                public init(rawValue: Int) {
+                    self.rawValue = rawValue
+                }
+            
+                public static let scope = Test(rawValue: "Scope")
+            
+                public static let element = Test(rawValue: "Element")
+            }
+            """,
+            macros: testMacros
+        )
+#else
+        throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+    }
+}
