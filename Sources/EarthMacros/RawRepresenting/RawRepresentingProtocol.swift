@@ -22,15 +22,15 @@ public protocol RawRepresentingProtocol : MemberMacro {
 public extension RawRepresentingProtocol {
     
     static var constantsEnumName: String {
-        "RawRepresentingConstants"
-    }
-    
-    static var constantsPrefixParameterName: String {
-        "constantPrefix"
+        "RawRepresentingByConstants"
     }
     
     static var literalsEnumName: String {
-        "RawRepresentingLiterals"
+        "RawRepresentingByLiterals"
+    }
+
+    static var constantsPrefixParameterName: String {
+        "constantPrefix"
     }
     
     static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax, in context: some MacroExpansionContext) throws -> [DeclSyntax] {

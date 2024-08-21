@@ -140,7 +140,7 @@ final class RawRepresentingTests: XCTestCase {
             @RawRepresenting<Int>(constantPrefix: "kParameter")
             public struct Test {
             
-                private enum RawRepresentingConstants {
+                private enum RawRepresentingByConstants {
                     case scope
                     case element
                 }
@@ -150,7 +150,7 @@ final class RawRepresentingTests: XCTestCase {
             
             public struct Test {
             
-                private enum RawRepresentingConstants {
+                private enum RawRepresentingByConstants {
                     case scope
                     case element
                 }
@@ -174,7 +174,7 @@ final class RawRepresentingTests: XCTestCase {
             @RawRepresenting<Int>
             public struct Test {
             
-                private enum RawRepresentingConstants {
+                private enum RawRepresentingByConstants {
                     case scope
                     case element
                 }
@@ -184,7 +184,7 @@ final class RawRepresentingTests: XCTestCase {
             
             public struct Test {
             
-                private enum RawRepresentingConstants {
+                private enum RawRepresentingByConstants {
                     case scope
                     case element
                 }
@@ -214,7 +214,7 @@ final class RawRepresentingTests: XCTestCase {
             @RawRepresenting<Int>
             public struct Test {
             
-                private enum RawRepresentingLiterals {
+                private enum RawRepresentingByLiterals {
                     case scope
                     case element
                 }
@@ -224,7 +224,7 @@ final class RawRepresentingTests: XCTestCase {
             
             public struct Test {
             
-                private enum RawRepresentingLiterals {
+                private enum RawRepresentingByLiterals {
                     case scope
                     case element
                 }
@@ -248,7 +248,7 @@ final class RawRepresentingTests: XCTestCase {
             @RawRepresenting<Int>
             public struct Test {
             
-                private enum RawRepresentingLiterals: Int {
+                private enum RawRepresentingByLiterals: Int {
                     case scope = 1
                     case element = 2
                 }
@@ -258,7 +258,7 @@ final class RawRepresentingTests: XCTestCase {
             
             public struct Test {
             
-                private enum RawRepresentingLiterals: Int {
+                private enum RawRepresentingByLiterals: Int {
                     case scope = 1
                     case element = 2
                 }
@@ -282,7 +282,7 @@ final class RawRepresentingTests: XCTestCase {
             @RawRepresenting<Int>
             public struct Test {
             
-                private enum RawRepresentingLiterals: String {
+                private enum RawRepresentingByLiterals: String {
                     case scope = "Scope"
                     case element = "Element"
                 }
@@ -292,7 +292,7 @@ final class RawRepresentingTests: XCTestCase {
             
             public struct Test {
             
-                private enum RawRepresentingLiterals: String {
+                private enum RawRepresentingByLiterals: String {
                     case scope = "Scope"
                     case element = "Element"
                 }
