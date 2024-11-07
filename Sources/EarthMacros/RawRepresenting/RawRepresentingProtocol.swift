@@ -21,6 +21,12 @@ public protocol RawRepresentingProtocol : MemberMacro {
 
 public extension RawRepresentingProtocol {
     
+    static var renamedEnumerationNames: [String: String] {
+        [
+            "RawRepresentingConstants": "RawRepresentingByConstants",
+            "RawRepresentingLiterals": "RawRepresentingByLiterals"
+        ]
+    }
     static var constantsEnumName: String {
         "RawRepresentingByConstants"
     }
@@ -39,6 +45,8 @@ public extension RawRepresentingProtocol {
         let attribute = try attribute(of: declaration)
         let rawType = try rawType(of: attribute)
         
+        checkWhetherUsingDeprecatedNames(in: declaration, context: context)
+        
         let rawValueDefinition = makeRawValueImplementation(of: declaration, accessControl: accessControl, rawType: rawType)
         let constantDefinitions = try makeConstantsImplementation(of: declaration, attribute: attribute, accessControl: accessControl)
         let literalDefinitions = try makeLiteralsImplementation(of: declaration, attribute: attribute, accessControl: accessControl)
@@ -48,6 +56,19 @@ public extension RawRepresentingProtocol {
 }
 
 private extension RawRepresentingProtocol {
+
+    static func checkWhetherUsingDeprecatedNames(in declaration: DeclGroupSyntax, context: some MacroExpansionContext) {
+        
+        for enumeration in declaration.memberBlock.enumerations {
+            
+            let currentName = enumeration.name.text
+            
+            if let renamedName = renamedEnumerationNames[currentName] {
+                
+                context.addDiagnostics(from: RawRepresentingError.deprecatedEnumerationName("'\(currentName)' is renamed by '\(renamedName)'."), node: enumeration)
+            }
+        }
+    }
 
     static func specifyingAccessControlModifier(of declaration: DeclGroupSyntax) -> String? {
         

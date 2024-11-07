@@ -10,6 +10,7 @@ public enum RawRepresentingError : Error {
     
     case unsupported(String)
     case unexpectedSyntax(String)
+    case deprecatedEnumerationName(String)
 }
 
 extension RawRepresentingError : CustomStringConvertible {
@@ -23,6 +24,9 @@ extension RawRepresentingError : CustomStringConvertible {
             
         case .unexpectedSyntax(let reason):
             "Syntax error: \(reason)"
+            
+        case .deprecatedEnumerationName(let reason):
+            "Deprecated enumeration name: \(reason)"
         }
     }
 }
