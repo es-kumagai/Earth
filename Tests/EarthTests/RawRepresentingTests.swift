@@ -202,6 +202,40 @@ final class RawRepresentingTests: XCTestCase {
             """,
             macros: testMacros
         )
+
+        assertMacroExpansion(
+            """
+            @RawRepresenting<Int>
+            public struct Test {
+            
+                private enum RawRepresentingByConstants {
+                    case scope
+                    case `element`
+                }
+            }
+            """,
+            expandedSource: """
+            
+            public struct Test {
+            
+                private enum RawRepresentingByConstants {
+                    case scope
+                    case `element`
+                }
+            
+                public let rawValue: Int
+            
+                public init(rawValue: Int) {
+                    self.rawValue = rawValue
+                }
+            
+                public static let scope = Test(rawValue: scope)
+            
+                public static let element = Test(rawValue: element)
+            }
+            """,
+            macros: testMacros
+        )
 #else
         throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif

@@ -133,7 +133,7 @@ private extension RawRepresentingProtocol {
         
         return try enumeration.allCaseElements.map { element in
             
-            let baseName = element.name
+            let baseName = element.name.unbackticked
             
             return switch element.rawValue {
                 

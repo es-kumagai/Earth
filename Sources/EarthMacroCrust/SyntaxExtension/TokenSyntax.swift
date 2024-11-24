@@ -17,6 +17,17 @@ public extension TokenSyntax {
         "\(raw: text.stringWithUppercasedFirstLetter)"
     }
     
+    var unbackticked: TokenSyntax {
+        
+        let text = text
+        
+        guard text.count >= 2, text.first == "`" && text.last == "`" else {
+            return self
+        }
+        
+        return "\(raw: text.dropFirst().dropLast())"
+    }
+    
     func prefixed(with prefix: some StringProtocol, uppercasedFirstLetter: Bool) -> TokenSyntax {
         
         "\(raw: prefix)\(raw: uppercasedFirstLetter ? text.stringWithUppercasedFirstLetter : text)"
