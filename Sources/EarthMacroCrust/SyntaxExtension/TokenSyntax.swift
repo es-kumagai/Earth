@@ -19,13 +19,15 @@ public extension TokenSyntax {
     
     var unbackticked: TokenSyntax {
         
-        let text = text
-        
-        guard text.count >= 2, text.first == "`" && text.last == "`" else {
+        guard isBackticked else {
             return self
         }
         
         return "\(raw: text.dropFirst().dropLast())"
+    }
+    
+    var isBackticked: Bool {
+        text.count >= 2 && text.first == "`" && text.last == "`"
     }
     
     func prefixed(with prefix: some StringProtocol, uppercasedFirstLetter: Bool) -> TokenSyntax {

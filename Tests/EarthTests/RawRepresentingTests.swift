@@ -171,6 +171,40 @@ final class RawRepresentingTests: XCTestCase {
         
         assertMacroExpansion(
             """
+            @RawRepresenting<Int>(constantPrefix: "kParameter")
+            public struct Test {
+            
+                private enum RawRepresentingByConstants {
+                    case scope
+                    case `element`
+                }
+            }
+            """,
+            expandedSource: """
+            
+            public struct Test {
+            
+                private enum RawRepresentingByConstants {
+                    case scope
+                    case `element`
+                }
+            
+                public let rawValue: Int
+            
+                public init(rawValue: Int) {
+                    self.rawValue = rawValue
+                }
+            
+                public static let scope = Test(rawValue: kParameterScope)
+            
+                public static let `element` = Test(rawValue: kParameterElement)
+            }
+            """,
+            macros: testMacros
+        )
+        
+        assertMacroExpansion(
+            """
             @RawRepresenting<Int>
             public struct Test {
             
@@ -231,7 +265,7 @@ final class RawRepresentingTests: XCTestCase {
             
                 public static let scope = Test(rawValue: scope)
             
-                public static let element = Test(rawValue: element)
+                public static let `element` = Test(rawValue: `element`)
             }
             """,
             macros: testMacros

@@ -133,7 +133,7 @@ private extension RawRepresentingProtocol {
         
         return try enumeration.allCaseElements.map { element in
             
-            let baseName = element.name.unbackticked
+            let baseName = element.name
             
             return switch element.rawValue {
                 
@@ -142,7 +142,7 @@ private extension RawRepresentingProtocol {
                 
             case nil:
                 if let constantPrefix {
-                    try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(raw: constantPrefix)\(baseName.uppercasedFirstLetter)")
+                    try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(raw: constantPrefix)\(baseName.unbackticked.uppercasedFirstLetter)")
                 } else {
                     try makePropertyDefinition(for: baseName, valueType: valueType, rawType: rawType, accessControl: accessControl, initialValue: "\(baseName)")
                 }
